@@ -61,14 +61,14 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     private(set) var middlewares: [AnyReduxMiddleware<State>] = []
     
     /// Creates a store with a initalized state
-    init(initialState: State, reducer: Reducer) {
+    public init(initialState: State, reducer: Reducer) {
         self.state = initialState
         self.reducer = reducer
         self.middlewares = []
     }
     
     /// Creates a store with a initalized state and middleware
-    init(initialState: State, reducer: Reducer, middlewares: [AnyReduxMiddleware<State>]) {
+    public init(initialState: State, reducer: Reducer, middlewares: [AnyReduxMiddleware<State>]) {
         self.state = initialState
         self.reducer = reducer
         self.middlewares = middlewares
