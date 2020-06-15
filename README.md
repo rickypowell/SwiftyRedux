@@ -23,7 +23,39 @@ Actions assist in the dispatch of potentially new state and implement `ReduxActi
 that you pass in a `ReduxAction`. For every action, the `ReduxStore` iterates through all the reducers and publishes
 the changes to the subscribers.
 
-### Example
+## Middleware
+
+The order of operations after calling `ReduxStore.dispatch(_:)` is as follows:
+1. pre-process the given action to each middleware in order at the time the store was initialized
+2. call the store's reducer
+3. publish the state changes to the subscribers
+4. post-process the given action to each middleware in reverse order
+
+```
+// Where `S` is the `State`
+struct Logging<S>: ReduxMiddleware {
+    func apply(state: @escaping () -> S, dispatch: @escaping (ReduxAction) -> Void) -> (@escaping (ReduxAction) -> ()) -> (ReduxAction) -> Void {
+        return { next in
+            return { action in
+                print("before state change \(state())")
+                next(action)
+                print("after state change \(state())")
+            }
+        }
+    }
+}
+
+let intStore = ReduxStore(
+    initialState: opInt, 
+    reducer: CounterReducer, 
+    middlewares: [AnyReduxMiddleware(Logging<CounterState>())]
+)
+```
+
+> Note: The types of the Middleware need to be erased with `AnyReduxMiddleware`.
+
+## Examples
+### Simple integer store with 2 different actions
 ```
 /// Actions
 
@@ -32,43 +64,28 @@ struct Decrement: ReduxAction {}
 
 /// Reducers
 
-func counterLogReducer(action: ReduxAction, state: Int) -> Int {
-    print("action: \(action), state: \(state)")
-    return state
-}
-
-func counterReducer(action: ReduxAction, state: Int) -> Int {
-    switch action {
-    case is Increment:
-        return state + 1
-    case is Decrement:
-            return state - 1
-    default:
-        return state
+struct CounterReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Int) -> Int {
+        switch action {
+        case is Increment:
+            return value + 1
+        case is Decrement:
+            return value - 1
+        default:
+            return state
+        }
     }
 }
 
-func counterReducer(action: ReduxAction, state: Int?) -> Int? {
-    guard let value = state else { return state }
-    switch action {
-    case is Increment:
-        return value + 1
-    case is Decrement:
-        return value - 1
-    default:
-        return state
-    }
-}
-
-// create a store
+// create a ReduxStore<Int>
 let opInt: Int = 2
-let intStore = createStore(initialState: opInt, counterReducer)
+let intStore = ReduxStore(initialState: opInt, reducer: CounterReducer)
 // create a subscription
-intStore.subscribe { (state: Int) in
+let subscriber = intStore.subscribe { (state: Int) in
     let x = state
     print(x)
 }
-intStore.subscribe { [weak intStore] _ in
+let subscriber2 = intStore.subscribe { [weak intStore] _ in
     if let history = intStore?.history {
         print(history)
     }
@@ -79,7 +96,11 @@ intStore.dispatch(action: Increment())
 intStore.dispatch(action: Decrement())
 intStore.dispatch(action: Increment())
 intStore.dispatch(action: Increment())
-
+intStore.cancel(subscriber)
+intStore.cancel(subscriber2)
+```
+### Combining Reducers into a single reducer
+```
 // Custom type
 
 struct TodayIsBirthday: ReduxAction {}
@@ -152,19 +173,29 @@ func petStoreReducer(action: ReduxAction, state: Human) -> Human {
     
 }
 
+struct HumanReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        return [
+            birthdayReducer, petStoreReducer, haveSnackReducer
+        ].reducer(state) { prev, next in 
+            return next(action: action, state: prev)
+        }
+    }
+}
+
 // create store
 let humanStore = createStore(
     initialState: Human(age: 0, hunger: "very"),
-    birthdayReducer, petStoreReducer, haveSnackReducer
+    reducer: HumanReducer()
 )
 // subscribe to changes
-humanStore.subscribe { state in
+let sub1 = humanStore.subscribe { state in
     let v = state
     print(v.age)
     v.age
     v.pets.map { $0.name }
 }
-humanStore.subscribe { [weak humanStore] state in
+let sub2 = humanStore.subscribe { [weak humanStore] state in
     if let h = humanStore?.history {
         h
     }
@@ -178,4 +209,6 @@ humanStore.dispatch(action: PurchaseBear())
 humanStore.dispatch(action: PurchaseGoldfish())
 humanStore.dispatch(action: TodayIsBirthday())
 humanStore.dispatch(action: EatGrapes())
+humanStore.cancel(sub1)
+humanStore.cancel(sub2)
 ```
