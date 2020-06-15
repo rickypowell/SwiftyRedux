@@ -7,19 +7,19 @@
 
 import Foundation
 
-protocol ReduxReducer {
+public protocol ReduxReducer {
     associatedtype State
     func reduce(action: ReduxAction, state: State) -> State
 }
 
-struct AnyReduxReducer<R: ReduxReducer>: ReduxReducer {
-    typealias State = R.State
+public struct AnyReduxReducer<R: ReduxReducer>: ReduxReducer {
+    public typealias State = R.State
     private let reducer: R
-    init(_ reducer: R) {
+    public init(_ reducer: R) {
         self.reducer = reducer
     }
     
-    func reduce(action: ReduxAction, state: State) -> State {
+    public func reduce(action: ReduxAction, state: State) -> State {
         reducer.reduce(action: action, state: state)
     }
 }

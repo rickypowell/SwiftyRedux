@@ -10,7 +10,7 @@ import Foundation
 /// The main driver for the unidirectional data flow model
 /// - `State` is the object that holds the values needed during the application lifecycle
 /// - `Reducer` is the object that mutates the `State` to a new `State`
-class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
+open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     
     fileprivate struct WeakBoxSubscription: Hashable {
         weak var content: Subscription?
@@ -20,7 +20,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
         }
     }
     
-    class Subscription: Hashable {
+    open class Subscription: Hashable {
         /// Universally uniuque identify for the subscription
         let id: UUID
         /// The owner of the this subscription
@@ -37,7 +37,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
         }
         
         /// Only uses `self.id` to compute equality
-        static func == (
+        public static func == (
             lhs: ReduxStore<State, Reducer>.Subscription,
             rhs: ReduxStore<State, Reducer>.Subscription
         ) -> Bool {
@@ -45,7 +45,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
         }
         
         /// Only uses `self.id` to compute the hash.
-        func hash(into hasher: inout Hasher) {
+        public func hash(into hasher: inout Hasher) {
             hasher.combine(self.id)
         }
         
@@ -80,7 +80,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     /// record is created after all reducers have finished. If the state is `Equatable`, then after each reducer has executed, it's output is compared with the
     /// previous state. If it's different, then the new state is published to the subscribers. Otherwise, the next reducer is executed. Subscibers will not receive
     /// an update until a new state is output.
-    func dispatch(action: ReduxAction) {
+    open func dispatch(action: ReduxAction) {
         let preMiddlewares = middlewares
             .map {
                 return $0.apply(
@@ -111,7 +111,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
         }
     }
     
-    func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxStore.Subscription {
+    open func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxStore.Subscription {
         let subscription = Subscription(
             id: UUID(),
             owner: self,
@@ -124,7 +124,7 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
         return subscription
     }
     
-    func subscribe<Subtree>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
+    open func subscribe<Subtree>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
         let subscription = Subscription(
             id: UUID(),
             owner: self) { [subscriber] state in
@@ -138,15 +138,15 @@ class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     }
     
     @discardableResult
-    func cancel(_ subscription: ReduxStore.Subscription) -> ReduxStore.Subscription? {
+    open func cancel(_ subscription: ReduxStore.Subscription) -> ReduxStore.Subscription? {
         return subscribers.remove(
             WeakBoxSubscription(content: subscription)
         )?.content
     }
 }
 
-extension ReduxStore where State: Equatable {
-    func dispatch(action: ReduxAction) {
+public extension ReduxStore where State: Equatable {
+    public func dispatch(action: ReduxAction) {
         let preMiddlewares = middlewares
             .map {
                 return $0.apply(
@@ -181,7 +181,7 @@ extension ReduxStore where State: Equatable {
         }
     }
 
-    func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
+    public func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
         var previous = state[keyPath: path]
         var next = previous
         let subscription = Subscription(

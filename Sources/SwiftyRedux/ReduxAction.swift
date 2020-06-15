@@ -1,2 +1,2 @@
 
-protocol ReduxAction {}
+public protocol ReduxAction {}
