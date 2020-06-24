@@ -22,7 +22,7 @@ class NoMiddlewareTests: XCTestCase {
     
     struct TestAction: ReduxAction {}
     
-    var subscriber: ReduxStore<AppState, AppReducer>.Subscription!
+    var subscriber: ReduxSubscription<NoMiddlewareTests.AppState, NoMiddlewareTests.AppReducer>!
     
     func testNoMiddlewareOrder() {
         let appReducerExpect = self.expectation(description: "appReducer")
@@ -63,7 +63,7 @@ class NoMiddlewareTests: XCTestCase {
         let amount: Int
     }
     
-    var equatableSubscriber: ReduxStore<EquatableAppState, EquatableAppReducer>.Subscription!
+    var equatableSubscriber: ReduxSubscription<NoMiddlewareTests.EquatableAppState, NoMiddlewareTests.EquatableAppReducer>!
     
     func testNoMiddlewareOrderEquatable() {
         let appReducerExpect = self.expectation(description: "appReducer")

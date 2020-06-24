@@ -31,7 +31,9 @@ class EquatableStateSubtreeTests: XCTestCase {
         let amount: Int
     }
     
-    var equatableSubscriber: ReduxStore<EquatableAppState, EquatableAppReducer>.Subscription!
+//    var equatableSubscriber: ReduxSubscription<EquatableStateSubtreeTests.EquatableAppState, EquatableStateSubtreeTests.EquatableAppReducer>!
+    
+    var equatableSubscriber: ReduxCancellable!
     
     func testExpectationCount() {
         let appReducerExpect = self.expectation(description: "appReducer")

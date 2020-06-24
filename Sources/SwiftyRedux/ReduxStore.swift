@@ -13,44 +13,10 @@ import Foundation
 open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     
     fileprivate struct WeakBoxSubscription: Hashable {
-        weak var content: Subscription?
+        weak var content: ReduxSubscription<State, Reducer>?
         func publish(_ state: State) {
             // forward the publish
             content?.publish(state)
-        }
-    }
-    
-    open class Subscription: Hashable {
-        /// Universally uniuque identify for the subscription
-        let id: UUID
-        /// The owner of the this subscription
-        let owner: ReduxStore<State, Reducer>
-        /// The callback to publish to the subscriber
-        let publish: (State) -> Void
-        /// - Parameter id: Universally uniuque identify for the subscription
-        /// - Parameter owner: The owner of the this subscription
-        /// - Parameter publish: The callback to publish to the subscriber
-        init(id: UUID, owner: ReduxStore<State, Reducer>, publish: @escaping (State) -> Void) {
-            self.id = id
-            self.owner = owner
-            self.publish = publish
-        }
-        
-        /// Only uses `self.id` to compute equality
-        public static func == (
-            lhs: ReduxStore<State, Reducer>.Subscription,
-            rhs: ReduxStore<State, Reducer>.Subscription
-        ) -> Bool {
-            return lhs.id == rhs.id
-        }
-        
-        /// Only uses `self.id` to compute the hash.
-        public func hash(into hasher: inout Hasher) {
-            hasher.combine(self.id)
-        }
-        
-        deinit {
-            self.owner.cancel(self)
         }
     }
     
@@ -81,38 +47,29 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     /// previous state. If it's different, then the new state is published to the subscribers. Otherwise, the next reducer is executed. Subscibers will not receive
     /// an update until a new state is output.
     open func dispatch(action: ReduxAction) {
-        let preMiddlewares = middlewares
+        let f: (ReduxAction) -> Void = middlewares
             .map {
                 return $0.apply(
                     state: { self.state },
                     dispatch: { [weak self] newAction in self?.dispatch(action: newAction) }
                 )
         }
-        
-        if middlewares.count > 0 {
-            let initial = { (action: ReduxAction) -> Void in
-                let newState = self.reducer.reduce(action: action, state: self.state)
-                for subscriber in self.subscribers {
-                    subscriber.publish(newState)
-                }
-                self.state = newState
+        .lazy
+        .reversed()
+        .reduce({ (action: ReduxAction) -> Void in
+            let newState = self.reducer.reduce(action: action, state: self.state)
+            for subscriber in self.subscribers {
+                subscriber.publish(newState)
             }
-            let f = preMiddlewares
-                .reversed()
-                .reduce(initial, { (prev, next) -> (ReduxAction) -> Void in
-                    return next(prev)
-                })
-            f(action)
-        } else {
-            self.state = self.reducer.reduce(action: action, state: state)
-            for subscriber in subscribers {
-                subscriber.publish(state)
-            }
+            self.state = newState
+        }) { (prev, next) -> (ReduxAction) -> Void in
+            return next(prev)
         }
+        f(action)
     }
     
-    open func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxStore.Subscription {
-        let subscription = Subscription(
+    open func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxSubscription<State, Reducer> {
+        let subscription = ReduxSubscription<State, Reducer>(
             id: UUID(),
             owner: self,
             publish: subscriber
@@ -124,11 +81,15 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         return subscription
     }
     
-    open func subscribe<Subtree>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
-        let subscription = Subscription(
+    open func subscribe<Subtree>(
+        subtree path: KeyPath<State, Subtree>,
+        _ subscriber: @escaping (Subtree) -> Void
+    ) -> ReduxSubscription<State, Reducer> {
+        let subscription = ReduxSubscription<State, Reducer>(
             id: UUID(),
-            owner: self) { [subscriber] state in
-                subscriber(state[keyPath: path])
+            owner: self
+        ) { [subscriber] state in
+            subscriber(state[keyPath: path])
         }
         let container = WeakBoxSubscription(
             content: subscription
@@ -138,7 +99,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     }
     
     @discardableResult
-    open func cancel(_ subscription: ReduxStore.Subscription) -> ReduxStore.Subscription? {
+    open func cancel(_ subscription: ReduxSubscription<State, Reducer>) -> ReduxSubscription<State, Reducer>? {
         return subscribers.remove(
             WeakBoxSubscription(content: subscription)
         )?.content
@@ -146,53 +107,43 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
 }
 
 public extension ReduxStore where State: Equatable {
-    public func dispatch(action: ReduxAction) {
-        let preMiddlewares = middlewares
+    func dispatch(action: ReduxAction) {
+        let previousState = self.state
+        let f: (ReduxAction) -> Void = middlewares
             .map {
                 return $0.apply(
                     state: { self.state },
                     dispatch: { [weak self] newAction in self?.dispatch(action: newAction) }
                 )
         }
-        
-        let previousState = self.state
-        if middlewares.count > 0 {
-            let initial = { (action: ReduxAction) -> Void in
-                let newState = self.reducer.reduce(action: action, state: previousState)
-                for subscriber in self.subscribers
-                    where previousState != newState {
-                    subscriber.publish(newState)
-                }
-                self.state = newState
-            }
-            let f = preMiddlewares
-                .reversed()
-                .reduce(initial, { (prev, next) -> (ReduxAction) -> Void in
-                    return next(prev)
-                })
-            f(action)
-        } else {
-            let newState = self.reducer.reduce(action: action, state: state)
-            for subscriber in subscribers
+        .lazy
+        .reversed()
+        .reduce({ (action: ReduxAction) -> Void in
+            let newState = self.reducer.reduce(action: action, state: self.state)
+            for subscriber in self.subscribers
                 where previousState != newState {
                 subscriber.publish(newState)
             }
             self.state = newState
+        }) { (prev, next) -> (ReduxAction) -> Void in
+            return next(prev)
         }
+        f(action)
     }
 
-    public func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxStore.Subscription {
+    func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxSubscription<State, Reducer> {
         var previous = state[keyPath: path]
         var next = previous
-        let subscription = Subscription(
+        let subscription = ReduxSubscription<State, Reducer>(
             id: UUID(),
-            owner: self) { [subscriber] state in
-                next = state[keyPath: path]
-                if previous != next {
-                    subscriber(state[keyPath: path])
-                    previous = next
-                }
-
+            owner: self
+        ) { [subscriber] state in
+            next = state[keyPath: path]
+            if previous != next {
+                subscriber(state[keyPath: path])
+                previous = next
+            }
+            
         }
         let container = WeakBoxSubscription(
             content: subscription

@@ -122,6 +122,8 @@ class SwiftyReduxTests: XCTestCase {
     
     struct TestAction: ReduxAction {}
     
+    var subscription: ReduxCancellable!
+    
     func testOrder() {
         let store = ReduxStore(
             initialState: AppState(),
@@ -133,7 +135,7 @@ class SwiftyReduxTests: XCTestCase {
             ]
         )
         let subscriberIsCalled = expectation(description: "subscriberIsCalled")
-        let subscription = store.subscribe { nextState in
+        subscription = store.subscribe { nextState in
             subscriberIsCalled.fulfill()
         }
         
@@ -185,7 +187,7 @@ class SwiftyReduxTests: XCTestCase {
         }
     }
     
-    var equatableSubscriber: ReduxStore<EquatableAppState, EquatableAppReducer>.Subscription!
+    var equatableSubscriber: ReduxSubscription<SwiftyReduxTests.EquatableAppState, SwiftyReduxTests.EquatableAppReducer>!
     
     func testMiddlewareOrderEquatable() {
         let appReducerExpect = self.expectation(description: "appReducer")
