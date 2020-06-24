@@ -98,11 +98,21 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         return subscription
     }
     
+    /// Removes the given `subscription` from receiving any new `State` chances
+    /// - Parameter subscription: the object that should stop receiving new `State` changes.
     @discardableResult
     open func cancel(_ subscription: ReduxSubscription<State, Reducer>) -> ReduxSubscription<State, Reducer>? {
         return subscribers.remove(
             WeakBoxSubscription(content: subscription)
         )?.content
+    }
+    
+    /// Removes the underying `ReduxSubscription` in the`cancellable` from receiving any new `State` chances
+    /// - Parameter cancellable: the object whos underlying `ReduxSubscription` will be removed from receiving any new
+    ///  published `State` values
+    open func cancel(_ cancellable: ReduxCancellable) {
+        guard let subscription = cancellable as? ReduxSubscription<State, Reducer> else { return }
+        cancel(subscription)
     }
 }
 

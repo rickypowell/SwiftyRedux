@@ -31,8 +31,6 @@ class EquatableStateSubtreeTests: XCTestCase {
         let amount: Int
     }
     
-//    var equatableSubscriber: ReduxSubscription<EquatableStateSubtreeTests.EquatableAppState, EquatableStateSubtreeTests.EquatableAppReducer>!
-    
     var equatableSubscriber: ReduxCancellable!
     
     func testExpectationCount() {
@@ -50,6 +48,7 @@ class EquatableStateSubtreeTests: XCTestCase {
         store.dispatch(action: IncrementBy(amount: 5))
         store.dispatch(action: IncrementBy(amount: 0))
         wait(for: [appReducerExpect, subscriberExpect], timeout: 2)
+        store.cancel(equatableSubscriber)
     }
 
 }
