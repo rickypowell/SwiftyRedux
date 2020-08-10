@@ -81,6 +81,23 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         return subscription
     }
     
+    open func subscribe<Selector: ReduxSelector>(
+        selector: Selector,
+        _ subscriber: @escaping (Selector.TransformedState) -> Void
+    ) -> ReduxSubscription<State, Reducer> where Selector.State == State {
+        let subscription = ReduxSubscription<State, Reducer>(
+            id: UUID(),
+            owner: self
+        ) { [subscriber] state in
+            subscriber(selector.select(state))
+        }
+        let container = WeakBoxSubscription(
+            content: subscription
+        )
+        subscribers.insert(container)
+        return subscription
+    }
+    
     open func subscribe<Subtree>(
         subtree path: KeyPath<State, Subtree>,
         _ subscriber: @escaping (Subtree) -> Void
@@ -90,6 +107,48 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
             owner: self
         ) { [subscriber] state in
             subscriber(state[keyPath: path])
+        }
+        let container = WeakBoxSubscription(
+            content: subscription
+        )
+        subscribers.insert(container)
+        return subscription
+    }
+    
+    open func subscribe<Selector: ReduxSelector>(
+        subtree path: KeyPath<State, Selector.State>,
+        selector: Selector,
+        _ subscriber: @escaping (Selector.TransformedState) -> Void
+    ) -> ReduxSubscription<State, Reducer> {
+        let subscription = ReduxSubscription<State, Reducer>(
+            id: UUID(),
+            owner: self
+        ) { [subscriber] state in
+            subscriber(selector.select(state[keyPath: path]))
+        }
+        let container = WeakBoxSubscription(
+            content: subscription
+        )
+        subscribers.insert(container)
+        return subscription
+    }
+    
+    func subscribe<Selector: ReduxSelector>(
+        subtree path: KeyPath<State, Selector.State>,
+        selector: Selector,
+        _ subscriber: @escaping (Selector.TransformedState) -> Void
+    ) -> ReduxSubscription<State, Reducer> where Selector.State: Equatable {
+        var previous = state[keyPath: path]
+        var next = previous
+        let subscription = ReduxSubscription<State, Reducer>(
+            id: UUID(),
+            owner: self
+        ) { [subscriber] state in
+            next = state[keyPath: path]
+            if previous != next {
+                subscriber(selector.select(state[keyPath: path]))
+                previous = next
+            }
         }
         let container = WeakBoxSubscription(
             content: subscription
