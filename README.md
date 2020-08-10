@@ -23,6 +23,29 @@ Actions assist in the dispatch of potentially new state and implement `ReduxActi
 that you pass in a `ReduxAction`. For every action, the `ReduxStore` iterates through all the reducers and publishes
 the changes to the subscribers.
 
+## Selectors
+
+`ReduxSelector` objects represents a way to transform state to another representation.
+Use selectors as a way to separate your state from the subscribers. Selectors can be reused
+on different UI or for different use cases. This makes it easier to unit test your data transforms.
+```
+// Declare a selector
+struct ToStringSelector: ReduxSelector {
+    func select(_ state: Int) -> String {
+       return state.description
+    }
+}
+// use the selector
+store.subscribe(
+    subtree: \.numberState,
+    selector: ToStringSelector()
+) { newState in
+   // newState is a `String`
+}
+```
+
+Selectors are not required to subsciber to updates in state.
+
 ## Middleware
 
 The order of operations after calling `ReduxStore.dispatch(_:)` is as follows:
