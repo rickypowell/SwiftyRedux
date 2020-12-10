@@ -115,6 +115,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         return subscription
     }
     
+    /// Subscriber to the subtree of changes as new state values occur.
     open func subscribe<Selector: ReduxSelector>(
         subtree path: KeyPath<State, Selector.State>,
         selector: Selector,
@@ -133,7 +134,9 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         return subscription
     }
     
-    func subscribe<Selector: ReduxSelector>(
+    /// Subscriber to the subtree of changes as new state values occur.
+    /// Equatable comparison between the old value and new value for using the selector and publishing the change to the subscriber.
+    open func subscribe<Selector: ReduxSelector>(
         subtree path: KeyPath<State, Selector.State>,
         selector: Selector,
         _ subscriber: @escaping (Selector.TransformedState) -> Void
