@@ -13,7 +13,7 @@ import Foundation
 open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     
     fileprivate struct WeakBoxSubscription: Hashable {
-        weak var content: ReduxSubscription<State, Reducer>?
+        weak var content: ReduxSubscription<State>?
         func publish(_ state: State) {
             // forward the publish
             content?.publish(state)
@@ -68,10 +68,9 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         f(action)
     }
     
-    open func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxSubscription<State, Reducer> {
-        let subscription = ReduxSubscription<State, Reducer>(
+    open func subscribe(_ subscriber: @escaping (State) -> Void) -> ReduxSubscription<State> {
+        let subscription = ReduxSubscription<State>(
             id: UUID(),
-            owner: self,
             publish: subscriber
         )
         let container = WeakBoxSubscription(
@@ -84,10 +83,9 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     open func subscribe<Selector: ReduxSelector>(
         selector: Selector,
         _ subscriber: @escaping (Selector.TransformedState) -> Void
-    ) -> ReduxSubscription<State, Reducer> where Selector.State == State {
-        let subscription = ReduxSubscription<State, Reducer>(
-            id: UUID(),
-            owner: self
+    ) -> ReduxSubscription<State> where Selector.State == State {
+        let subscription = ReduxSubscription<State>(
+            id: UUID()
         ) { [subscriber] state in
             subscriber(selector.select(state))
         }
@@ -101,10 +99,9 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     open func subscribe<Subtree>(
         subtree path: KeyPath<State, Subtree>,
         _ subscriber: @escaping (Subtree) -> Void
-    ) -> ReduxSubscription<State, Reducer> {
-        let subscription = ReduxSubscription<State, Reducer>(
-            id: UUID(),
-            owner: self
+    ) -> ReduxSubscription<State> {
+        let subscription = ReduxSubscription<State>(
+            id: UUID()
         ) { [subscriber] state in
             subscriber(state[keyPath: path])
         }
@@ -120,10 +117,9 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         subtree path: KeyPath<State, Selector.State>,
         selector: Selector,
         _ subscriber: @escaping (Selector.TransformedState) -> Void
-    ) -> ReduxSubscription<State, Reducer> {
-        let subscription = ReduxSubscription<State, Reducer>(
-            id: UUID(),
-            owner: self
+    ) -> ReduxSubscription<State> {
+        let subscription = ReduxSubscription<State>(
+            id: UUID()
         ) { [subscriber] state in
             subscriber(selector.select(state[keyPath: path]))
         }
@@ -140,12 +136,11 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         subtree path: KeyPath<State, Selector.State>,
         selector: Selector,
         _ subscriber: @escaping (Selector.TransformedState) -> Void
-    ) -> ReduxSubscription<State, Reducer> where Selector.State: Equatable {
+    ) -> ReduxSubscription<State> where Selector.State: Equatable {
         var previous = state[keyPath: path]
         var next = previous
-        let subscription = ReduxSubscription<State, Reducer>(
-            id: UUID(),
-            owner: self
+        let subscription = ReduxSubscription<State>(
+            id: UUID()
         ) { [subscriber] state in
             next = state[keyPath: path]
             if previous != next {
@@ -163,7 +158,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     /// Removes the given `subscription` from receiving any new `State` chances
     /// - Parameter subscription: the object that should stop receiving new `State` changes.
     @discardableResult
-    open func cancel(_ subscription: ReduxSubscription<State, Reducer>) -> ReduxSubscription<State, Reducer>? {
+    open func cancel(_ subscription: ReduxSubscription<State>) -> ReduxSubscription<State>? {
         return subscribers.remove(
             WeakBoxSubscription(content: subscription)
         )?.content
@@ -173,7 +168,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     /// - Parameter cancellable: the object whos underlying `ReduxSubscription` will be removed from receiving any new
     ///  published `State` values
     open func cancel(_ cancellable: ReduxCancellable) {
-        guard let subscription = cancellable as? ReduxSubscription<State, Reducer> else { return }
+        guard let subscription = cancellable as? ReduxSubscription<State> else { return }
         cancel(subscription)
     }
 }
@@ -203,12 +198,11 @@ public extension ReduxStore where State: Equatable {
         f(action)
     }
 
-    func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxSubscription<State, Reducer> {
+    func subscribe<Subtree: Equatable>(subtree path: KeyPath<State, Subtree>, _ subscriber: @escaping (Subtree) -> Void) -> ReduxSubscription<State> {
         var previous = state[keyPath: path]
         var next = previous
-        let subscription = ReduxSubscription<State, Reducer>(
-            id: UUID(),
-            owner: self
+        let subscription = ReduxSubscription<State>(
+            id: UUID()
         ) { [subscriber] state in
             next = state[keyPath: path]
             if previous != next {

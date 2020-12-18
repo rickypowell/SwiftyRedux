@@ -8,5 +8,4 @@
 import Foundation
 
 public protocol ReduxCancellable {
-    func cancel()
 }

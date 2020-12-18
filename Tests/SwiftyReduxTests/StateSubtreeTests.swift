@@ -31,7 +31,7 @@ class StateSubtreeTests: XCTestCase {
         let amount: Int
     }
     
-    var subscriber: ReduxSubscription<StateSubtreeTests.AppState, StateSubtreeTests.AppReducer>!
+    var subscriber: ReduxSubscription<StateSubtreeTests.AppState>!
     
     func testExpectationCount() {
         let appReducerExpect = self.expectation(description: "appReducer")

@@ -187,7 +187,7 @@ class SwiftyReduxTests: XCTestCase {
         }
     }
     
-    var equatableSubscriber: ReduxSubscription<SwiftyReduxTests.EquatableAppState, SwiftyReduxTests.EquatableAppReducer>!
+    var equatableSubscriber: ReduxSubscription<SwiftyReduxTests.EquatableAppState>!
     
     func testMiddlewareOrderEquatable() {
         let appReducerExpect = self.expectation(description: "appReducer")
