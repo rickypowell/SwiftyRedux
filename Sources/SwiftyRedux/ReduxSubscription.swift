@@ -7,7 +7,7 @@
 
 import Foundation
 
-open class ReduxSubscription<State>: Hashable, ReduxCancellable {
+public struct ReduxSubscription<State>: Hashable, ReduxCancellable {
     /// Universally uniuque identify for the subscription
     let id: UUID
     /// The callback to publish to the subscriber

@@ -12,17 +12,9 @@ import Foundation
 /// - `Reducer` is the object that mutates the `State` to a new `State`
 open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
     
-    fileprivate struct WeakBoxSubscription: Hashable {
-        weak var content: ReduxSubscription<State>?
-        func publish(_ state: State) {
-            // forward the publish
-            content?.publish(state)
-        }
-    }
-    
     private(set) var state: State
     private(set) var reducer: Reducer
-    private var subscribers: Set<WeakBoxSubscription> = []
+    private var subscribers: Set<ReduxSubscription<State>> = []
     
     private(set) var middlewares: [AnyReduxMiddleware<State>] = []
     
@@ -73,10 +65,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
             id: UUID(),
             publish: subscriber
         )
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
     
@@ -89,10 +78,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         ) { [subscriber] state in
             subscriber(selector.select(state))
         }
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
     
@@ -105,10 +91,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         ) { [subscriber] state in
             subscriber(state[keyPath: path])
         }
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
     
@@ -123,10 +106,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
         ) { [subscriber] state in
             subscriber(selector.select(state[keyPath: path]))
         }
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
     
@@ -148,10 +128,7 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
                 previous = next
             }
         }
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
     
@@ -160,8 +137,8 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     @discardableResult
     open func cancel(_ subscription: ReduxSubscription<State>) -> ReduxSubscription<State>? {
         return subscribers.remove(
-            WeakBoxSubscription(content: subscription)
-        )?.content
+            subscription
+        )
     }
     
     /// Removes the underying `ReduxSubscription` in the`cancellable` from receiving any new `State` chances
@@ -211,10 +188,7 @@ public extension ReduxStore where State: Equatable {
             }
             
         }
-        let container = WeakBoxSubscription(
-            content: subscription
-        )
-        subscribers.insert(container)
+        subscribers.insert(subscription)
         return subscription
     }
 }
