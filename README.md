@@ -39,8 +39,8 @@ struct ToStringSelector: ReduxSelector {
 store.subscribe(
     subtree: \.numberState,
     selector: ToStringSelector()
-) { newState in
-   // newState is a `String`
+) { (newState: String) -> Void in
+   // `newState` is a `String`
 }
 ```
 
@@ -68,8 +68,8 @@ struct Logging<S>: ReduxMiddleware {
     }
 }
 
-let intStore = ReduxStore(
-    initialState: opInt, 
+let store = ReduxStore(
+    initialState: CounterState(value: 0), 
     reducer: CounterReducer, 
     middlewares: [AnyReduxMiddleware(Logging<CounterState>())]
 )
@@ -156,58 +156,63 @@ func humanLogger(action: ReduxAction, state: Human) -> Human {
     return state
 }
 
-func birthdayReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is TodayIsBirthday:
-        mutableState.age += 1
-        return mutableState
-    default:
-        return state
+struct BirthdayReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is TodayIsBirthday:
+            mutableState.age += 1
+            return mutableState
+        default:
+            return state
+        }
     }
 }
 
-func haveSnackReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is EatGrapes:
-        mutableState.hunger = "satisfied"
-        return mutableState
-    default:
-        return state
+struct SnackReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is EatGrapes:
+            mutableState.hunger = "satisfied"
+            return mutableState
+        default:
+            return state
+        }
     }
 }
 
-func petStoreReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is PurchaseBear:
-        mutableState.pets.append(Pet(name: "🐻 Bear", numberOfLegs: 4))
-        return mutableState
-    case is TodayIsBirthday:
-        mutableState.pets.append(Pet(name: "🎂 Goldfish", numberOfLegs: 0))
-        return mutableState
-    case is PurchaseGoldfish:
-        mutableState.pets.append(Pet(name: "🐠 Goldfish", numberOfLegs: 0))
-        return mutableState
-    default:
-        return state
+struct PetStoreReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is PurchaseBear:
+            mutableState.pets.append(Pet(name: "🐻 Bear", numberOfLegs: 4))
+            return mutableState
+        case is TodayIsBirthday:
+            mutableState.pets.append(Pet(name: "🎂 Goldfish", numberOfLegs: 0))
+            return mutableState
+        case is PurchaseGoldfish:
+            mutableState.pets.append(Pet(name: "🐠 Goldfish", numberOfLegs: 0))
+            return mutableState
+        default:
+            return state
+        }
     }
-    
 }
 
 struct HumanReducer: ReduxReducer {
     func reduce(action: ReduxAction, state: Human) -> Human {
         return [
-            birthdayReducer, petStoreReducer, haveSnackReducer
+            BirthdayReducer(), PetStoreReducer, SnackReducer()
         ].reducer(state) { prev, next in 
-            return next(action: action, state: prev)
+            return next.reduce(action: action, state: prev)
         }
     }
 }
 
 // create store
-let humanStore = createStore(
+let humanStore = ReduxStore(
     initialState: Human(age: 0, hunger: "very"),
     reducer: HumanReducer()
 )
