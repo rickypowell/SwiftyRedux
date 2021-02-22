@@ -139,7 +139,7 @@ class SwiftyReduxTests: XCTestCase {
             subscriberIsCalled.fulfill()
         }
         
-        store.dispatch(action: TestAction())
+        store.dispatch(TestAction())
         wait(
             for: [
                 loggerExpectation,
@@ -205,8 +205,8 @@ class SwiftyReduxTests: XCTestCase {
             subscriberExpect.fulfill()
             XCTAssertEqual(5, newState.count)
         }
-        store.dispatch(action: IncrementBy(amount: 0))
-        store.dispatch(action: IncrementBy(amount: 5))
+        store.dispatch(IncrementBy(amount: 0))
+        store.dispatch(IncrementBy(amount: 5))
         wait(for: [appReducerExpect, subscriberExpect], timeout: 2)
     }
 

@@ -10,7 +10,8 @@ import Foundation
 /// The main driver for the unidirectional data flow model
 /// - `State` is the object that holds the values needed during the application lifecycle
 /// - `Reducer` is the object that mutates the `State` to a new `State`
-open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State {
+open class ReduxStore<State, Reducer: ReduxReducer>:
+    ReduxCanceller where Reducer.State == State {
     
     private(set) var state: State
     private(set) var reducer: Reducer
@@ -26,6 +27,10 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     }
     
     /// Creates a store with a initalized state and middleware
+    /// - Parameters:
+    ///     - initialState: setup the initial state and pass it to the initializer of the store
+    ///     - reducer: the aggregate reducer of the store that will recieve the dispatched action
+    ///     - middlewares: interceptors of all the actions that are dispatched and responsible for allowing or denying the action to be processed by the `reducer`.
     public init(initialState: State, reducer: Reducer, middlewares: [AnyReduxMiddleware<State>]) {
         self.state = initialState
         self.reducer = reducer
@@ -34,16 +39,15 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
     
     /// Pushes the action into the store
     ///
-    /// It does this by iterating through all the reducers. At the same time, it appends a historic record between reducer mutations (microHistory) and a then finally a
-    /// record is created after all reducers have finished. If the state is `Equatable`, then after each reducer has executed, it's output is compared with the
+    /// It does this by iterating through all the reducers. If the state is `Equatable`, then after each reducer has executed, it's output is compared with the
     /// previous state. If it's different, then the new state is published to the subscribers. Otherwise, the next reducer is executed. Subscibers will not receive
     /// an update until a new state is output.
-    open func dispatch(action: ReduxAction) {
+    open func dispatch(_ action: ReduxAction) {
         let f: (ReduxAction) -> Void = middlewares
             .map {
                 return $0.apply(
                     state: { self.state },
-                    dispatch: { [weak self] newAction in self?.dispatch(action: newAction) }
+                    dispatch: { [weak self] newAction in self?.dispatch(newAction) }
                 )
         }
         .lazy
@@ -151,13 +155,13 @@ open class ReduxStore<State, Reducer: ReduxReducer> where Reducer.State == State
 }
 
 public extension ReduxStore where State: Equatable {
-    func dispatch(action: ReduxAction) {
+    func dispatch(_ action: ReduxAction) {
         let previousState = self.state
         let f: (ReduxAction) -> Void = middlewares
             .map {
                 return $0.apply(
                     state: { self.state },
-                    dispatch: { [weak self] newAction in self?.dispatch(action: newAction) }
+                    dispatch: { [weak self] newAction in self?.dispatch(newAction) }
                 )
         }
         .lazy
@@ -186,7 +190,6 @@ public extension ReduxStore where State: Equatable {
                 subscriber(state[keyPath: path])
                 previous = next
             }
-            
         }
         subscribers.insert(subscription)
         return subscription

@@ -7,5 +7,6 @@
 
 import Foundation
 
+/// Something can can be cancelled so that they do no receive any futher published state changes.
 public protocol ReduxCancellable {
 }

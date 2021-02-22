@@ -1,5 +1,5 @@
 //
-//  StateSubtreeTests.swift
+//  SubscribeSubtreeTests.swift
 //  
 //
 //  Created by Ricky Powell on 6/15/20.
@@ -8,7 +8,7 @@
 import XCTest
 @testable import SwiftyRedux
 
-class StateSubtreeTests: XCTestCase {
+class SubscribeSubtreeTests: XCTestCase {
 
     struct AppState {
         var count: Int = 0
@@ -31,8 +31,9 @@ class StateSubtreeTests: XCTestCase {
         let amount: Int
     }
     
-    var subscriber: ReduxSubscription<StateSubtreeTests.AppState>!
+    var subscriber: ReduxSubscription<SubscribeSubtreeTests.AppState>!
     
+    /// When a subscribing to a subtree of state, then same subtree will be published again even if the substree has not changed.
     func testExpectationCount() {
         let appReducerExpect = self.expectation(description: "appReducer")
         appReducerExpect.expectedFulfillmentCount = 2
@@ -46,8 +47,8 @@ class StateSubtreeTests: XCTestCase {
             subscriberExpect.fulfill()
             XCTAssertEqual(5, newState)
         })
-        store.dispatch(action: IncrementBy(amount: 5))
-        store.dispatch(action: IncrementBy(amount: 0))
+        store.dispatch(IncrementBy(amount: 5))
+        store.dispatch(IncrementBy(amount: 0))
         wait(for: [appReducerExpect, subscriberExpect], timeout: 2)
     }
     

@@ -1,6 +1,6 @@
 //
-//  ReduxSelectorEquatableStateTests.swift
-//  
+//  SubscribeSubtreeSelectorTests.swift
+//
 //
 //  Created by Ricky Powell on 8/9/20.
 //
@@ -8,13 +8,9 @@
 import XCTest
 @testable import SwiftyRedux
 
-class ReduxSelectorEquatableStateTests: XCTestCase {
+class SubscribeSubtreeSelectorTests: XCTestCase {
     
-    struct NumberState: Equatable {
-        var value: Int
-    }
-    
-    struct NumberStateNonEquatable {
+    struct NumberState {
         var value: Int
     }
     
@@ -33,35 +29,36 @@ class ReduxSelectorEquatableStateTests: XCTestCase {
         }
     }
     
-    var store: ReduxStore<ReduxSelectorEquatableStateTests.NumberState, ReduxSelectorEquatableStateTests.NumberReducer>!
+    struct ToStringSelector: ReduxSelector {
+        func select(_ state: Int) -> String {
+            return state.description
+        }
+    }
+    
+    var store: ReduxStore<
+        SubscribeSubtreeSelectorTests.NumberState,
+        SubscribeSubtreeSelectorTests.NumberReducer>!
     var cancellable: ReduxCancellable!
     
     override func setUp() {
         super.setUp()
         store = ReduxStore(
-            initialState: NumberState(value: 1),
+            initialState: NumberState(value: 9),
             reducer: NumberReducer()
         )
         cancellable = nil
     }
     
-    func testEquatableState() {
-        // test selector
-        struct ToStringSelector: ReduxSelector {
-            func select(_ state: Int) -> String {
-                return state.description
-            }
-        }
-        // setup input
+    func testNonEquatableState() {
         let called = self.expectation(description: "called")
         cancellable = store.subscribe(
             subtree: \.value,
             selector: ToStringSelector()
         ) { (transformedValue: String) -> Void in
             called.fulfill()
-            XCTAssertEqual("2", transformedValue)
+            XCTAssertEqual("10", transformedValue)
         }
-        store.dispatch(action: IncrementAction())
+        store.dispatch(IncrementAction())
         wait(for: [called], timeout: 0.5)
     }
 }

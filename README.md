@@ -5,8 +5,14 @@ This is a homegrown solution for Redux in swift for the project. Below is exampl
 
 ## Store
 
-The `ReduxStore` holds all the state. When the dispatch method is called, then it iterates through all of it's given reducers which can mutate
-the state. This cycle is meant to repeat until every reducer has finished executing and all subscribers have received the state updates.
+The `ReduxStore` holds all the state. When the store is asked to dispatch an action, then order of events are:
+1. preprocess the action through the middleware 
+2. process the action through the reducers. Reducer output a new state for the store hold.
+3. postprocess the action through the middleware 
+4. publish the new state to all the subscribers
+Subscribers can be cancelled from receiving any more updates from the store.
+
+> 
 
 At the same time, it appends a historic record between reducer mutations (microHistory) and a then finally a
 record is created after all reducers have finished. If the state is `Equatable`, then after each reducer has executed, it's output is compared with the
@@ -108,10 +114,9 @@ let subscriber = intStore.subscribe { (state: Int) in
     let x = state
     print(x)
 }
-let subscriber2 = intStore.subscribe { [weak intStore] _ in
-    if let history = intStore?.history {
-        print(history)
-    }
+let subscriber2 = intStore.subscribe { (newState: Int) -> Void in
+    // receive updates with new state
+    print("new state: \(newState)")
 }
 // dispatch some actions
 intStore.dispatch(action: Increment())
@@ -122,7 +127,7 @@ intStore.dispatch(action: Increment())
 intStore.cancel(subscriber)
 intStore.cancel(subscriber2)
 ```
-### Combining Reducers into a single reducer
+### Combining Reducers into a single reducer (Aggregate Reducer)
 ```
 // Custom type
 
@@ -137,7 +142,6 @@ struct Pet: Equatable {
 }
 
 struct Human: Equatable, CustomDebugStringConvertible {
-
     var age: Int
     var hunger: String
     var pets: [Pet] = []
@@ -145,69 +149,80 @@ struct Human: Equatable, CustomDebugStringConvertible {
         self.age = age
         self.hunger = hunger
     }
-    
     var debugDescription: String {
         return "<Human age=\(age), hunger=\(hunger), pets=\(pets) />"
     }
 }
 
-func humanLogger(action: ReduxAction, state: Human) -> Human {
-    print("🤖 logging human <\(state) />")
-    return state
-}
-
-func birthdayReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is TodayIsBirthday:
-        mutableState.age += 1
-        return mutableState
-    default:
-        return state
-    }
-}
-
-func haveSnackReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is EatGrapes:
-        mutableState.hunger = "satisfied"
-        return mutableState
-    default:
-        return state
-    }
-}
-
-func petStoreReducer(action: ReduxAction, state: Human) -> Human {
-    var mutableState = state
-    switch action {
-    case is PurchaseBear:
-        mutableState.pets.append(Pet(name: "🐻 Bear", numberOfLegs: 4))
-        return mutableState
-    case is TodayIsBirthday:
-        mutableState.pets.append(Pet(name: "🎂 Goldfish", numberOfLegs: 0))
-        return mutableState
-    case is PurchaseGoldfish:
-        mutableState.pets.append(Pet(name: "🐠 Goldfish", numberOfLegs: 0))
-        return mutableState
-    default:
-        return state
-    }
-    
-}
-
-struct HumanReducer: ReduxReducer {
+struct HumanLoggerReducer: ReduxReducer {
     func reduce(action: ReduxAction, state: Human) -> Human {
-        return [
-            birthdayReducer, petStoreReducer, haveSnackReducer
-        ].reducer(state) { prev, next in 
-            return next(action: action, state: prev)
+        print("🤖 logging human <\(state) />")
+        return state
+    }
+}
+
+struct BirthdayReducer: ReduceReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is TodayIsBirthday:
+            mutableState.age += 1
+            return mutableState
+        default:
+            return state
         }
     }
 }
 
+struct HaveSnackReducer: ReduceReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is EatGrapes:
+            mutableState.hunger = "satisfied"
+            return mutableState
+        default:
+            return state
+        }
+    }
+}
+
+struct PetStoreReducer: ReduceReducer {
+    func reduce (action: ReduxAction, state: Human) -> Human {
+        var mutableState = state
+        switch action {
+        case is PurchaseBear:
+            mutableState.pets.append(Pet(name: "🐻 Bear", numberOfLegs: 4))
+            return mutableState
+        case is TodayIsBirthday:
+            mutableState.pets.append(Pet(name: "🎂 Goldfish", numberOfLegs: 0))
+            return mutableState
+        case is PurchaseGoldfish:
+            mutableState.pets.append(Pet(name: "🐠 Goldfish", numberOfLegs: 0))
+            return mutableState
+        default:
+            return state
+        }
+    }
+}
+
+struct HumanReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
+        var humanState = state
+        humanState = HumanLoggerReducer()
+            .reduce(action: action, state: humanState)
+        humanState = BirthdayReducer()
+            .reduce(action: action, state: humanState)
+        humanState = HaveSnackReducer()
+            .reduce(action: action, state: humanState)
+        humanState = PetStoreReducer()
+            .reduce(action: action, state: humanState)
+        return humanState
+    }
+}
+
 // create store
-let humanStore = createStore(
+let humanStore = ReduxStore(
     initialState: Human(age: 0, hunger: "very"),
     reducer: HumanReducer()
 )
@@ -218,20 +233,16 @@ let sub1 = humanStore.subscribe { state in
     v.age
     v.pets.map { $0.name }
 }
-let sub2 = humanStore.subscribe { [weak humanStore] state in
-    if let h = humanStore?.history {
-        h
-    }
-    if let m = humanStore?.microHistory {
-        m
-    }
+let sub2 = humanStore.subscribe { state in
+    print("new state \(state)")
 }
 // dispacth actions
-humanStore.dispatch(action: TodayIsBirthday())
-humanStore.dispatch(action: PurchaseBear())
-humanStore.dispatch(action: PurchaseGoldfish())
-humanStore.dispatch(action: TodayIsBirthday())
-humanStore.dispatch(action: EatGrapes())
+humanStore.dispatch(TodayIsBirthday())
+humanStore.dispatch(PurchaseBear())
+humanStore.dispatch(PurchaseGoldfish())
+humanStore.dispatch(TodayIsBirthday())
+humanStore.dispatch(EatGrapes())
+// cancel publications to the subscribers
 humanStore.cancel(sub1)
 humanStore.cancel(sub2)
 ```

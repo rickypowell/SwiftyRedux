@@ -34,7 +34,7 @@ class NoMiddlewareTests: XCTestCase {
         subscriber = store.subscribe { newState in
             subscriberExpect.fulfill()
         }
-        store.dispatch(action: TestAction())
+        store.dispatch(TestAction())
         wait(
             for: [appReducerExpect, subscriberExpect],
             timeout: 2,
@@ -77,8 +77,8 @@ class NoMiddlewareTests: XCTestCase {
             subscriberExpect.fulfill()
             XCTAssertEqual(5, newState.count)
         }
-        store.dispatch(action: IncrementBy(amount: 5))
-        store.dispatch(action: IncrementBy(amount: 0))
+        store.dispatch(IncrementBy(amount: 5))
+        store.dispatch(IncrementBy(amount: 0))
         wait(for: [appReducerExpect, subscriberExpect], timeout: 2)
     }
     

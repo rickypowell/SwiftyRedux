@@ -1,5 +1,5 @@
 //
-//  EquatableStateSubtreeTests.swift
+//  SubscribeEquatableSubtreeTests.swift
 //  
 //
 //  Created by Ricky Powell on 6/15/20.
@@ -8,7 +8,7 @@
 import XCTest
 @testable import SwiftyRedux
 
-class EquatableStateSubtreeTests: XCTestCase {
+class SubscribeEquatableSubtreeTests: XCTestCase {
 
     struct EquatableAppState: Equatable {
         var count: Int = 0
@@ -33,6 +33,8 @@ class EquatableStateSubtreeTests: XCTestCase {
     
     var equatableSubscriber: ReduxCancellable!
     
+    /// When a subscribing to a subtree of state, if the subtree is not different
+    /// than the previous time its value was published, then same subtree will not be published again.
     func testExpectationCount() {
         let appReducerExpect = self.expectation(description: "appReducer")
         appReducerExpect.expectedFulfillmentCount = 2
@@ -41,13 +43,14 @@ class EquatableStateSubtreeTests: XCTestCase {
             reducer: EquatableAppReducer(expectation: appReducerExpect)
         )
         let subscriberExpect = self.expectation(description: "subscriber")
+        subscriberExpect.expectedFulfillmentCount = 1
         equatableSubscriber = store.subscribe(subtree: \.count, { newState in
             subscriberExpect.fulfill()
             XCTAssertEqual(5, newState)
         })
-        store.dispatch(action: IncrementBy(amount: 5))
-        store.dispatch(action: IncrementBy(amount: 0))
-        wait(for: [appReducerExpect, subscriberExpect], timeout: 2)
+        store.dispatch(IncrementBy(amount: 5))
+        store.dispatch(IncrementBy(amount: 0))
+        wait(for: [appReducerExpect, subscriberExpect], timeout: 0.1)
         store.cancel(equatableSubscriber)
     }
 
