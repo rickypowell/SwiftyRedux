@@ -45,8 +45,8 @@ struct ToStringSelector: ReduxSelector {
 store.subscribe(
     subtree: \.numberState,
     selector: ToStringSelector()
-) { newState in
-   // newState is a `String`
+) { (newState: String) -> Void in
+   // `newState` is a `String`
 }
 ```
 
@@ -74,8 +74,8 @@ struct Logging<S>: ReduxMiddleware {
     }
 }
 
-let intStore = ReduxStore(
-    initialState: opInt, 
+let store = ReduxStore(
+    initialState: CounterState(value: 0), 
     reducer: CounterReducer, 
     middlewares: [AnyReduxMiddleware(Logging<CounterState>())]
 )
@@ -161,7 +161,8 @@ struct HumanLoggerReducer: ReduxReducer {
     }
 }
 
-struct BirthdayReducer: ReduceReducer {
+
+struct BirthdayReducer: ReduxReducer {
     func reduce(action: ReduxAction, state: Human) -> Human {
         var mutableState = state
         switch action {
@@ -187,8 +188,9 @@ struct HaveSnackReducer: ReduceReducer {
     }
 }
 
-struct PetStoreReducer: ReduceReducer {
-    func reduce (action: ReduxAction, state: Human) -> Human {
+
+struct PetStoreReducer: ReduxReducer {
+    func reduce(action: ReduxAction, state: Human) -> Human {
         var mutableState = state
         switch action {
         case is PurchaseBear:
